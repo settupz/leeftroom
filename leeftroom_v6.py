@@ -89,12 +89,9 @@ async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif query.data == "profile":
         if user:
             profile = (
-                f"Ник: {user.get('nickname', '')}
-"
-                f"Возраст: {user.get('age', '')}
-"
-                f"Город: {user.get('city', '')}
-"
+                f"Ник: {user.get('nickname', '')}\n"
+                f"Возраст: {user.get('age', '')}\n"
+                f"Город: {user.get('city', '')}\n"
                 f"О себе: {user.get('bio', '')}"
             )
             await context.bot.send_photo(chat_id=user_id, photo=user.get("photo_id"), caption=profile)
@@ -106,14 +103,9 @@ async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_message(
             chat_id=user_id,
             text=(
-                "👋 Всем привет! 😊
-
-"
-                "Создатель бота очень старается, и только-только познаёт мир программирования 🧠
-"
-                "Половина кода была написана с помощью ChatGPT 🤖
-
-"
+                "👋 Всем привет! 😊\n\n"
+                "Создатель бота очень старается, и только-только познаёт мир программирования 🧠\n"
+                "Половина кода была написана с помощью ChatGPT 🤖\n\n"
                 "Если хотите — можете поддержать проект для будущих улучшений 🙏"
             ),
             reply_markup=InlineKeyboardMarkup([
