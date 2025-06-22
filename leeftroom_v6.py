@@ -13,10 +13,15 @@ geolocator = Nominatim(user_agent="leeftroom_bot")
 REGISTER, AGE, CITY, BIO, PHOTO, MENU = range(6)
 users = {}
 
+main_keyboard = ReplyKeyboardMarkup(
+    [["🧍‍♂️ Мой профиль", "✏️ Изменить анкету"],
+     ["🔍 Просмотр анкет", "ℹ️ О проекте"]], resize_keyboard=True
+)
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     users[user_id] = {}
-    await update.message.reply_text("Привет! Введи свой ник:")
+    await update.message.reply_text("Привет! Введи свой ник:", reply_markup=ReplyKeyboardRemove())
     return REGISTER
 
 async def register(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -64,29 +69,19 @@ async def bio(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     photo_file = update.message.photo[-1]
     users[update.effective_user.id]["photo_id"] = photo_file.file_id
-    await update.message.reply_text("Регистрация завершена!")
-    return await show_menu(update)
-
-async def show_menu(update: Update):
-    keyboard = [
-        [InlineKeyboardButton("Изменить анкету", callback_data="edit")],
-        [InlineKeyboardButton("Показать анкету", callback_data="profile")],
-        [InlineKeyboardButton("О проекте", callback_data="about")]
-    ]
-    await update.message.reply_text("Меню:", reply_markup=InlineKeyboardMarkup(keyboard))
+    await update.message.reply_text("Регистрация завершена!", reply_markup=main_keyboard)
     return MENU
 
-async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    user_id = query.from_user.id
+async def show_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Меню:", reply_markup=main_keyboard)
+    return MENU
+
+async def handle_text_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
     user = users.get(user_id)
+    text = update.message.text
 
-    if query.data == "edit":
-        await context.bot.send_message(chat_id=user_id, text="Что хочешь изменить? Введи заново:")
-        return REGISTER
-
-    elif query.data == "profile":
+    if text == "🧍‍♂️ Мой профиль":
         if user:
             profile = (
                 f"Ник: {user.get('nickname', '')}\n"
@@ -94,25 +89,29 @@ async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"Город: {user.get('city', '')}\n"
                 f"О себе: {user.get('bio', '')}"
             )
-            await context.bot.send_photo(chat_id=user_id, photo=user.get("photo_id"), caption=profile)
+            await update.message.reply_photo(photo=user.get("photo_id"), caption=profile)
         else:
-            await context.bot.send_message(chat_id=user_id, text="Анкета не найдена.")
-        return MENU
+            await update.message.reply_text("Анкета не найдена.")
 
-    elif query.data == "about":
-        await context.bot.send_message(
-            chat_id=user_id,
-            text=(
-                "👋 Всем привет! 😊\n\n"
-                "Создатель бота очень старается, и только-только познаёт мир программирования 🧠\n"
-                "Половина кода была написана с помощью ChatGPT 🤖\n\n"
-                "Если хотите — можете поддержать проект для будущих улучшений 🙏"
-            ),
+    elif text == "✏️ Изменить анкету":
+        await update.message.reply_text("Что хочешь изменить? Введи заново:", reply_markup=ReplyKeyboardRemove())
+        return REGISTER
+
+    elif text == "ℹ️ О проекте":
+        await update.message.reply_text(
+            "👋 Всем привет! 😊\n\n"
+            "Создатель бота очень старается, и только-только познаёт мир программирования 🧠\n"
+            "Половина кода была написана с помощью ChatGPT 🤖\n\n"
+            "Если хотите — можете поддержать проект для будущих улучшений 🙏",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("💖 Поддержать", url="https://www.donationalerts.com/r/haunithay")]
             ])
         )
-        return MENU
+
+    elif text == "🔍 Просмотр анкет":
+        await update.message.reply_text("Функция просмотра анкет пока в разработке 🛠")
+
+    return MENU
 
 async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Пока!")
@@ -138,13 +137,12 @@ def main():
             ],
             BIO: [MessageHandler(filters.TEXT & ~filters.COMMAND, bio)],
             PHOTO: [MessageHandler(filters.PHOTO, photo)],
-            MENU: [MessageHandler(filters.TEXT & ~filters.COMMAND, show_menu)],
+            MENU: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_menu)],
         },
         fallbacks=[CommandHandler("stop", stop)],
     )
 
     app.add_handler(conv_handler)
-    app.add_handler(CallbackQueryHandler(menu_handler))
     app.add_handler(MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, delete_data))
 
     print("Bot started...")
