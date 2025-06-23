@@ -157,4 +157,11 @@ async def handle_text_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     return MENU
 
+def main():
+    ...
+
+if __name__ == "__main__":
+    main()
+
+
 # остальные функции оставить как есть, включая main()
