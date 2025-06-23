@@ -95,7 +95,7 @@ async def handle_text_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("Анкета не найдена.")
 
     elif text == "✏️ Изменить анкету":
-        await update.message.reply_text("Что хочешь изменить? Введи заново:", reply_markup=ReplyKeyboardRemove())
+        await update.message.reply_text("регистрация по новой, введи ник", reply_markup=ReplyKeyboardRemove())
         return REGISTER
 
     elif text == "ℹ️ О проекте":
