@@ -5,28 +5,32 @@ from telegram.ext import (
 )
 from telegram.constants import ChatAction
 from geopy.geocoders import Nominatim
-from geopy.exc import GeocoderUnavailable, GeocoderTimedOut
 import os
+import random
 
 TOKEN = os.getenv("BOT_TOKEN")
+ADMIN_ID = 959818938  # ЗАМЕНИ на свой Telegram ID
 geolocator = Nominatim(user_agent="leeftroom_bot")
 
-REGISTER, AGE, CITY, BIO, PHOTO, MENU = range(6)
+REGISTER, AGE, CITY, BIO, PHOTO, MENU, EDIT_MENU, EDIT_NAME, EDIT_AGE, EDIT_BIO, EDIT_PHOTO, EDIT_CITY = range(12)
 users = {}
+likes = {}
+disliked = {}
 
 main_keyboard = ReplyKeyboardMarkup(
-    [["\U0001F9CD\u200D\u2642\uFE0F Мой профиль", "\u270F\uFE0F Изменить анкету"],
-     ["\U0001F50D Просмотр анкет", "\u2139\uFE0F О проекте"]], resize_keyboard=True
+    [["🧍‍♂️ Мой профиль", "✏️ Изменить анкету"],
+     ["🔍 Просмотр анкет", "ℹ️ О проекте"],
+     ["📁 Все анкеты"]], resize_keyboard=True
 )
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     users[user_id] = {}
-    await update.message.reply_text("Привет! Введи свой ник:", reply_markup=ReplyKeyboardRemove())
+    await update.message.reply_text("Привет! Введи своё имя:", reply_markup=ReplyKeyboardRemove())
     return REGISTER
 
 async def register(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    users[update.effective_user.id]["nickname"] = update.message.text
+    users[update.effective_user.id]["name"] = update.message.text
     await update.message.reply_text("Сколько тебе лет? (только цифры)")
     return AGE
 
@@ -42,42 +46,26 @@ async def age(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def city(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-
     if update.message.location:
         location = update.message.location
-        try:
-            location_data = geolocator.reverse((location.latitude, location.longitude), language='en')
-            city_name = location_data.raw.get("address", {}).get("city") or \
-                        location_data.raw.get("address", {}).get("town") or \
-                        location_data.raw.get("address", {}).get("village")
-            if city_name:
-                users[user_id]["city"] = city_name
-                await update.message.reply_text(f"Определён город: {city_name}")
-            else:
-                await update.message.reply_text("Не удалось определить город по геолокации.")
-                return CITY
-        except (GeocoderUnavailable, GeocoderTimedOut):
-            await update.message.reply_text("Ошибка при определении города. Попробуй ещё раз позже.")
-            return CITY
-
+        location_data = geolocator.reverse((location.latitude, location.longitude), language='en')
+        city = location_data.raw.get("address", {}).get("city", "Неизвестно")
+        users[user_id]["city"] = city
+        await update.message.reply_text(f"Определён город: {city}")
     elif update.message.text:
-        city_input = update.message.text.strip()
         try:
-            location_data = geolocator.geocode(city_input)
-            if location_data and ("city" in location_data.raw.get("address", {}) or
-                                  "town" in location_data.raw.get("address", {}) or
-                                  "village" in location_data.raw.get("address", {})):
-                users[user_id]["city"] = city_input
-                await update.message.reply_text(f"Город сохранён: {city_input}")
+            location_data = geolocator.geocode(update.message.text)
+            if location_data:
+                users[user_id]["city"] = update.message.text
+                await update.message.reply_text(f"Город сохранён: {update.message.text}")
             else:
-                await update.message.reply_text("Пожалуйста, введи настоящий город.")
+                await update.message.reply_text("Пожалуйста, введи реальное название города.")
                 return CITY
-        except (GeocoderUnavailable, GeocoderTimedOut):
-            await update.message.reply_text("Не удалось проверить город. Попробуй позже.")
+        except:
+            await update.message.reply_text("Ошибка при определении города. Повтори ввод.")
             return CITY
-
     else:
-        await update.message.reply_text("Пожалуйста, отправь геолокацию или введи город вручную:")
+        await update.message.reply_text("Пожалуйста, отправь геолокацию или напиши свой город:")
         return CITY
 
     markup = ReplyKeyboardMarkup([["Пропустить"]], resize_keyboard=True)
@@ -95,11 +83,7 @@ async def bio(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     photo_file = update.message.photo[-1]
     users[update.effective_user.id]["photo_id"] = photo_file.file_id
-    await update.message.reply_text("Регистрация завершена!")
-    return await show_menu(update, context)
-
-async def show_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Меню:", reply_markup=main_keyboard)
+    await update.message.reply_text("Регистрация завершена!", reply_markup=main_keyboard)
     return MENU
 
 async def handle_text_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -107,72 +91,70 @@ async def handle_text_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = users.get(user_id)
     text = update.message.text
 
-    if text == "\U0001F9CD\u200D\u2642\uFE0F Мой профиль":
+    if text == "🧍‍♂️ Мой профиль":
         if user:
             profile = (
-                f"Ник: {user.get('nickname', '')}\n"
-                f"Возраст: {user.get('age', '')}\n"
-                f"Город: {user.get('city', '')}\n"
-                f"О себе: {user.get('bio', '')}"
+                f"👤 <b>Имя:</b> {user.get('name', '')}\n"
+                f"🎂 <b>Возраст:</b> {user.get('age', '')}\n"
+                f"📍 <b>Город:</b> {user.get('city', '')}\n"
+                f"💬 <b>О себе:</b> {user.get('bio', '')}"
             )
-            await update.message.reply_photo(photo=user.get("photo_id"), caption=profile)
+            await update.message.reply_photo(photo=user.get("photo_id"), caption=profile, parse_mode="HTML")
         else:
             await update.message.reply_text("Анкета не найдена.")
 
-    elif text == "\u270F\uFE0F Изменить анкету":
-        await update.message.reply_text("Что хочешь изменить? Введи заново:", reply_markup=ReplyKeyboardRemove())
-        return REGISTER
+    elif text == "📁 Все анкеты" and user_id == ADMIN_ID:
+        if not users:
+            await update.message.reply_text("Нет анкет в базе данных.")
+        for uid, udata in users.items():
+            profile = (
+                f"👤 <b>Имя:</b> {udata.get('name', '')}\n"
+                f"🎂 <b>Возраст:</b> {udata.get('age', '')}\n"
+                f"📍 <b>Город:</b> {udata.get('city', '')}\n"
+                f"💬 <b>О себе:</b> {udata.get('bio', '')}"
+            )
+            try:
+                await update.message.reply_photo(photo=udata.get("photo_id"), caption=profile, parse_mode="HTML")
+            except:
+                await update.message.reply_text(profile, parse_mode="HTML")
 
-    elif text == "\u2139\uFE0F О проекте":
+    elif text == "✏️ Изменить анкету":
+        keyboard = [["Имя", "Возраст"], ["Город", "О себе"], ["Фото"]]
+        await update.message.reply_text("Что хочешь изменить?", reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True))
+        return EDIT_MENU
+
+    elif text == "ℹ️ О проекте":
         await update.message.reply_text(
-            "\U0001F44B Всем привет! \U0001F60A\n\n"
-            "Создатель бота очень старается, и только-только познаёт мир программирования \U0001F9E0\n"
-            "Половина кода была написана с помощью ChatGPT \U0001F916\n\n"
-            "Если хотите — можете поддержать проект для будущих улучшений \U0001F64F",
+            "👋 Всем привет! 😊\n\n"
+            "Создатель бота очень старается, и только-только познаёт мир программирования 🧠\n"
+            "Половина кода была написана с помощью ChatGPT 🤖\n\n"
+            "Если хотите — можете поддержать проект для будущих улучшений 🙏",
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("\U0001F496 Поддержать", url="https://www.donationalerts.com/r/haunithay")]
+                [InlineKeyboardButton("💖 Поддержать", url="https://www.donationalerts.com/r/haunithay")]
             ])
         )
 
-    elif text == "\U0001F50D Просмотр анкет":
-        await update.message.reply_text("Функция просмотра анкет пока в разработке \U0001F6E0")
+    elif text == "🔍 Просмотр анкет":
+        if not user:
+            await update.message.reply_text("Сначала пройди регистрацию командой /start.")
+            return MENU
+        candidates = [uid for uid in users if uid != user_id and uid not in likes.get(user_id, set()) and uid not in disliked.get(user_id, set())]
+        if not candidates:
+            await update.message.reply_text("Нет новых анкет для просмотра 🔄")
+            return MENU
+        target_id = random.choice(candidates)
+        context.user_data['viewing'] = target_id
+        target = users[target_id]
+        profile = (
+            f"👤 <b>Имя:</b> {target.get('name', '')}\n"
+            f"🎂 <b>Возраст:</b> {target.get('age', '')}\n"
+            f"📍 <b>Город:</b> {target.get('city', '')}\n"
+            f"💬 <b>О себе:</b> {target.get('bio', '')}"
+        )
+        await update.message.reply_photo(photo=target.get("photo_id"), caption=profile, parse_mode="HTML", reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("❤️", callback_data="like"), InlineKeyboardButton("👎", callback_data="dislike")]
+        ]))
 
     return MENU
 
-async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Пока!")
-    return ConversationHandler.END
-
-async def delete_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    if user_id in users:
-        del users[user_id]
-        print(f"User {user_id} data deleted.")
-
-def main():
-    app = Application.builder().token(TOKEN).build()
-
-    conv_handler = ConversationHandler(
-        entry_points=[CommandHandler("start", start)],
-        states={
-            REGISTER: [MessageHandler(filters.TEXT & ~filters.COMMAND, register)],
-            AGE: [MessageHandler(filters.TEXT & ~filters.COMMAND, age)],
-            CITY: [
-                MessageHandler(filters.LOCATION, city),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, city)
-            ],
-            BIO: [MessageHandler(filters.TEXT & ~filters.COMMAND, bio)],
-            PHOTO: [MessageHandler(filters.PHOTO, photo)],
-            MENU: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_menu)],
-        },
-        fallbacks=[CommandHandler("stop", stop)],
-    )
-
-    app.add_handler(conv_handler)
-    app.add_handler(MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, delete_data))
-
-    print("Bot started...")
-    app.run_polling()
-
-if __name__ == "__main__":
-    main()
+# остальные функции оставить как есть, включая main()
