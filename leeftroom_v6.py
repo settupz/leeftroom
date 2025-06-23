@@ -69,8 +69,9 @@ async def bio(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     photo_file = update.message.photo[-1]
     users[update.effective_user.id]["photo_id"] = photo_file.file_id
-    await update.message.reply_text("Регистрация завершена!", reply_markup=main_keyboard)
-    return MENU
+    await update.message.reply_text("Регистрация завершена!")
+    return await show_menu(update, context)
+
 
 async def show_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Меню:", reply_markup=main_keyboard)
