@@ -1,3 +1,4 @@
+import asyncio
 import os
 import json
 import random
@@ -385,7 +386,7 @@ def run_bot():
     app.add_handler(CallbackQueryHandler(handle_button_press, pattern=r"^(like|dislike)_"))
     app.add_handler(CommandHandler("logs", send_logs))
     print("Bot is running...")
-    app.run_polling()
+    asyncio.run(app.run_polling())
 
 flask_app = Flask(__name__)
 @flask_app.route('/')
