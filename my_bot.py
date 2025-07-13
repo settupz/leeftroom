@@ -399,12 +399,17 @@ async def main():
     app.add_handler(CommandHandler("logs", send_logs))
 
     # Запускаем бота и веб-сервер вместе в одном асинхронном цикле
-    print("Starting bot and web server together...")
-    await asyncio.gather(
-        app.run_polling(),
-        hypercorn.asyncio.serve(flask_app, config),
-    )
-
+   
+print("Starting bot and web server together...")
+    
+    # Вместо run_polling() мы запускаем компоненты бота по отдельности,
+    # чтобы они работали в фоне под управлением нашего главного "менеджера"
+    await app.initialize()
+    await app.updater.start_polling()
+    await app.start()
+    
+    # А веб-сервер запускаем в основном потоке, чтобы программа не закрывалась
+    await hypercorn.asyncio.serve(flask_app, config)
 
 if __name__ == "__main__":
     # Загружаем данные перед запуском
