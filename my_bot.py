@@ -368,6 +368,7 @@ def home():
 
 # --- ОСНОВНАЯ АСИНХРОННАЯ ФУНКЦИЯ ---
 
+# ОСНОВНАЯ АСИНХРОННАЯ ФУНКЦИЯ (С ОТЛАДКОЙ)
 async def main():
     # Настраиваем веб-сервер Hypercorn
     config = Config()
@@ -399,12 +400,28 @@ async def main():
     app.add_handler(CallbackQueryHandler(handle_button_press, pattern=r"^(like|dislike)_"))
     app.add_handler(CommandHandler("logs", send_logs))
 
-    # Запускаем бота и веб-сервер вместе в одном асинхронном цикле
-    print("Starting bot and web server together...")
+    # --- НАЧАЛО ОТЛАДОЧНОГО БЛОКА ---
+    print("\n--- ULTIMATE DEBUG BLOCK ---")
+    if TOKEN:
+        print(f"DEBUG: Token loaded. It ends with: ...{TOKEN[-6:]}")
+    else:
+        print("DEBUG: ERROR! TOKEN IS NOT LOADED! IT IS NONE!")
 
+    print("DEBUG: Initializing application...")
     await app.initialize()
+    print("DEBUG: Application initialized successfully.")
+
+    print("DEBUG: Starting updater polling...")
     await app.updater.start_polling()
+    print("DEBUG: Updater polling started successfully.")
+
+    print("DEBUG: Starting application background tasks...")
     await app.start()
+    print("DEBUG: Application started successfully. Bot should be online.")
+
+    print("DEBUG: Starting web server...")
+    print("--- END OF DEBUG BLOCK ---\n")
+    # --- КОНЕЦ ОТЛАДОЧНОГО БЛОКА ---
 
     await hypercorn.asyncio.serve(flask_app, config)
 
