@@ -1,44 +1,43 @@
 import os
-import asyncio
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
-# Считываем токен из переменных окружения
 TOKEN = os.getenv("BOT_TOKEN")
 
-# Эта функция будет отвечать на любое текстовое сообщение
+# Асинхронная функция для ответа на /start
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    print(f"Received /start from user {update.effective_user.id}")
+    await update.message.reply_text("Привет! Я - самый простой эхо-бот. Отправь мне текст.")
+
+# Асинхронная функция для эхо-ответа
 async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Отправляет эхо в ответ на сообщение."""
-    # Выводим в лог, что мы получили сообщение
-    print(f"Received message: '{update.message.text}' from user {update.effective_user.id}")
+    print(f"Echoing message from user {update.effective_user.id}")
     await update.message.reply_text("Эхо: " + update.message.text)
 
-# Функция для команды /start
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Отправляет приветствие."""
-    print(f"Received /start command from user {update.effective_user.id}")
-    await update.message.reply_text("Привет! Я - минимальный эхо-бот. Отправь мне что-нибудь.")
 
+def main() -> None:
+    """Основная функция, которая запускает всё."""
+    print("Script starting...")
 
-async def main():
-    """Основная функция запуска."""
-    # Создаем приложение
-    app = Application.builder().token(TOKEN).build()
+    # Проверяем, есть ли токен
+    if not TOKEN:
+        print("ОШИБКА: Не найден BOT_TOKEN в переменных окружения!")
+        return # Выходим, если токена нет
 
-    # Добавляем обработчики
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
+    print(f"Token found, ending with: ...{TOKEN[-6:]}")
 
-    # Запускаем бота
-    print("Minimal Echo Bot is starting polling...")
-    await app.run_polling()
-    print("Polling finished.") # Эта строка не должна появиться в нормальном режиме
+    # Создаём приложение
+    application = Application.builder().token(TOKEN).build()
+
+    # Добавляем обработчики команд
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
+
+    # Запускаем бота. Эта функция сама всё сделает, включая управление asyncio.
+    # Она будет работать вечно, пока её не остановить.
+    print("Starting bot polling...")
+    application.run_polling()
 
 
 if __name__ == "__main__":
-    print("Script starting...")
-    if TOKEN:
-        print(f"Token found, ending in: ...{TOKEN[-6:]}")
-        asyncio.run(main())
-    else:
-        print("ERROR: BOT_TOKEN not found in environment variables!")
+    main()
