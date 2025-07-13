@@ -356,14 +356,26 @@ async def show_all_profiles(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # --- СБОРКА БОТА И ВЕБ-СЕРВЕР ДЛЯ РАБОТЫ 24/7 ---
 
-def run_bot():
-    global users, likes, disliked
-    users = load_data(USERS_FILE)
-    likes = load_data(LIKES_FILE)
-    disliked = load_data(DISLIKED_FILE)
+import asyncio
+import hypercorn.asyncio
+from hypercorn.config import Config
 
-    log_action("Bot starting...")
+# --- ВЕБ-СЕРВЕР ДЛЯ РАБОТЫ 24/7 ---
+flask_app = Flask(__name__)
+@flask_app.route('/')
+def home():
+    return "I'm alive!"
+
+# --- ОСНОВНАЯ АСИНХРОННАЯ ФУНКЦИЯ ---
+async def main():
+    # Настраиваем веб-сервер Hypercorn
+    config = Config()
+    config.bind = [f"0.0.0.0:{os.environ.get('PORT', 10000)}"]
+    
+    # Настраиваем бота
     app = Application.builder().token(TOKEN).build()
+
+    # Собираем все обработчики (handlers)
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("start", start)],
         states={
@@ -385,16 +397,21 @@ def run_bot():
     app.add_handler(conv_handler)
     app.add_handler(CallbackQueryHandler(handle_button_press, pattern=r"^(like|dislike)_"))
     app.add_handler(CommandHandler("logs", send_logs))
-    print("Bot is running...")
-    asyncio.run(app.run_polling())
 
-flask_app = Flask(__name__)
-@flask_app.route('/')
-def home():
-    return "I'm alive!"
+    # Запускаем бота и веб-сервер вместе в одном асинхронном цикле
+    print("Starting bot and web server together...")
+    await asyncio.gather(
+        app.run_polling(),
+        hypercorn.asyncio.serve(flask_app, config),
+    )
+
 
 if __name__ == "__main__":
-    bot_thread = threading.Thread(target=run_bot)
-    bot_thread.start()
-    port = int(os.environ.get('PORT', 5000))
-    flask_app.run(host='0.0.0.0', port=port)
+    # Загружаем данные перед запуском
+    users = load_data(USERS_FILE)
+    likes = load_data(LIKES_FILE)
+    disliked = load_data(DISLIKED_FILE)
+    log_action("Application starting...")
+    
+    # Запускаем основную асинхронную функцию
+    asyncio.run(main())
