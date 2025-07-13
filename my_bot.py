@@ -367,11 +367,12 @@ def home():
     return "I'm alive!"
 
 # --- ОСНОВНАЯ АСИНХРОННАЯ ФУНКЦИЯ ---
+
 async def main():
     # Настраиваем веб-сервер Hypercorn
     config = Config()
     config.bind = [f"0.0.0.0:{os.environ.get('PORT', 10000)}"]
-    
+
     # Настраиваем бота
     app = Application.builder().token(TOKEN).build()
 
@@ -397,18 +398,14 @@ async def main():
     app.add_handler(conv_handler)
     app.add_handler(CallbackQueryHandler(handle_button_press, pattern=r"^(like|dislike)_"))
     app.add_handler(CommandHandler("logs", send_logs))
+
     # Запускаем бота и веб-сервер вместе в одном асинхронном цикле
-
-print("Starting bot and web server together...")
-
-    # Вместо run_polling() мы запускаем компоненты бота по отдельности,
-    # чтобы они работали в фоне под управлением нашего главного "менеджера"
+    print("Starting bot and web server together...")
 
     await app.initialize()
     await app.updater.start_polling()
     await app.start()
 
-    # А веб-сервер запускаем в основном потоке, чтобы программа не закрывалась
     await hypercorn.asyncio.serve(flask_app, config)
 
 if __name__ == "__main__":
